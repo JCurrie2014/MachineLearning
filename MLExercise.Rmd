@@ -1,0 +1,129 @@
+---
+title: "Machine Learning - Unilateral Dumbbell Biceps Curl Quality Prediction"
+author: "Jerry Currie"
+date: "Tuesday, March 17, 2015"
+output: html_document
+---
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. Wearing accelerometers 6 participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+# Synopsis
+The goal of this study is to build a model that predicts the "correctness of barbell lifts" based upon acceleratometer readings and classifies each exercise into one of five Classes (A-E). There were originally 19622 observations in the training set and 20 in the final test set, each having 160 parameters. The final model will be run against the test set predicting the Class of all 20 lifts.
+
+## Version Info  ################################## 
+- OS: Windows 7 Home Premium
+- R: Version 3.1.2
+- Rstudio: Version 0.98.1091
+- knitr: Version 1.9 
+- caret: Version 6.0-41
+- randomForest: Version 4.6-10
+- rpart.plot: Version 1,5,2
+
+
+### Load Libraries ################################ 
+```{r}
+library(rpart)
+library(caret)
+library(randomForest)
+library(rpart.plot)
+
+```
+
+### Get and Load Data ###########################
+There were originally 19622 observations with 160 vairables in the training set. The testing set had 20 observations with 160 variables. After cleaning the data and removing the excess the training set had 19219 observations with 53 variables, while the testing set had 20 observations with 53 varaibles.
+
+
+### Data Sources: The data for this project comes from http://groupware.les.inf.puc-rio.br/har
+
+training: "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" 
+
+testing: "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv" 
+
+
+```{r}
+#Load data set locally for performance 
+training<-read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!", "")) 
+testing<-read.csv("pml-testing.csv",na.strings=c("NA","#DIV/0!", "")) 
+#set the seed for reproducing pseudo random numbers
+set.seed(111111)
+#retain only columns having values
+training<-training[,colSums(is.na(training)) == 0]
+testing <-testing[,colSums(is.na(testing)) == 0]
+#remove rows having "yes" as new window (thse aren't in testing data set)
+#and keep remaining records having "no" as new window
+training<-subset(training, new_window=="no", data=training)
+#Remove unnecessary columns from data sets
+training<-training[,-c(1:7)]
+testing<-testing[,-c(1:7)]
+#Create partions from training set for building the models and cross-validation
+trainsample <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
+subtraining <- training[trainsample, ] 
+subtesting <- training[-trainsample, ]
+```
+
+### Plot Histogram
+The histogram (below) shows the percentage of exercises performed correctly (as shown by Classe A) in the subtraining set. There are 14414 observations having approximately (28.47%, 19.35%, 17.44%, 16.38%, 18.36%) in Classe (A, B, C, D, E) respectively.
+```{r}
+#Make histogram showing percent of total for each classe (subtrain)
+histogram(subtraining$classe, col="red", xlab="Classe", ylab="Percent of Total Observations") 
+```
+
+### Create the CART (classification and regression tree) model using rpart
+Create the first Cart model using rpart. The model is built using the subtraining data set, then
+used to predict the classe in the subtesting data set.
+
+```{r}
+#Create first CART (classification and regression tree) model using rpart 
+model1 <- rpart(classe ~ ., data=subtraining, method="class")
+
+# Predicting classe for subtesting data set
+prediction1 <- predict(model1, subtesting, type = "class")
+```
+
+### Plot the CART model (model 1) to illustrate the decision tree
+```{r}
+prp(model1) #using rpart.plot
+```
+
+### Create a confusion matrix for cross-validating the prediction against the subtesting data set (Model 1).
+Model 1 has an accuracy rate of 74.34% with a 95% confidence interval of (0.7308, 0.7557). The low 
+p-value < 2.2e-16 indicates that there is a low chance of these values being random. 
+
+```{r}
+confusionMatrix(prediction1, subtesting$classe)
+```
+
+### Create second model using randomForest 
+Again, the subtraining set is used to build the model. 
+```{r}
+#Create randomForest model using all parameters to predict classe
+model2 <- randomForest(classe ~. , data=subtraining, method="class")
+
+# Use the second model to predit classe using the subtesting data set
+prediction2 <- predict(model2, subtesting, type = "class")
+
+```
+
+### Create a confusion matrix for cross-validating the prediction against the subtesting data set (Model 2).
+Model 2 has an accuracy rate of 99.27% with a 95% confidence interval of (0.9899, 0.9949). The high KAPPA score also confirms that the there was a low chance of the outcome being random. Model 2 shows a KAPPA value of 0.9908 vs. 0.6746 for model 1. Usually the KAPPA value increases with the number of parameters, and the accuracy of the model. Since the parameter count remained equal, the accuracy of the model is what drove the value.    
+
+```{r}
+confusionMatrix(prediction2, subtesting$classe)
+```
+
+### Running Model 2 to predict the classe of the 20 exercises held in the original testing data set
+The expected out of sample error rate is .73% for Model 2, which has a computed accuracy rate of 99.27% shown in the confusion matrix (above).
+```{r}
+# predict outcome levels on the original Testing data set using Random Forest algorithm
+predictfinal <- predict(model2, testing, type="class")
+#Show the predicted values for 1:20
+predictfinal
+```
+
+
+
