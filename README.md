@@ -8,8 +8,12 @@ All of the code required to duplicate my finding are held in the MLExercise.Rmd 
 There is also an html document named MLExercise.html containing the charts and figures. This file contains html source code which needs to be copied and saved to the local system (in a text document saved with the .html extension) in order to be viewed.  
 
 The original data was collected here:
+
 http://groupware.les.inf.puc-rio.br/har
+
 This project uses the training and testing sets below.
+
 training: "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
 testing: "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 
